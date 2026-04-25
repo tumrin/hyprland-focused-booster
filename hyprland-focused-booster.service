@@ -1,0 +1,9 @@
+[Unit]
+Description=Hyprland dmemcg service
+After=dmemcg-booster-user.service graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/hyprland-focused-booster
+
+[Install]
+WantedBy=graphical-session.target

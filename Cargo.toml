@@ -1,0 +1,18 @@
+[package]
+name = "hyprland-focused-booster"
+version = "0.1.0"
+edition = "2024"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = "symbols"
+
+[dependencies]
+ctrlc = { version = "3.5.2", features = ["termination"] }
+hyprland = { version = "0.4.0-beta.3", default-features = false, features = [
+  "listener",
+] }
+systemd = { version = "0.10.1", default-features = false, features = [
+  "journal",
+] }
