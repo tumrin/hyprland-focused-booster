@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs, process,
     sync::{LazyLock, Mutex},
 };
@@ -12,9 +11,14 @@ enum OP {
     Revert,
 }
 
+struct ValueString {
+    boost: String,
+    revert: String,
+}
+
 static PREVIOUS: LazyLock<Mutex<Option<i32>>> = LazyLock::new(|| Mutex::new(None));
-static GPUS: LazyLock<HashMap<String, u64>> = LazyLock::new(|| {
-    let capacities: HashMap<String, u64> = fs::read_to_string("/sys/fs/cgroup/dmem.capacity")
+static VALUES: LazyLock<ValueString> = LazyLock::new(|| {
+    let (boost, revert): (String, String) = fs::read_to_string("/sys/fs/cgroup/dmem.capacity")
         .expect("Could not read GPU devices")
         .lines()
         .filter_map(|line| {
@@ -26,7 +30,7 @@ static GPUS: LazyLock<HashMap<String, u64>> = LazyLock::new(|| {
             };
             let capacity = capacity.parse::<u64>();
             if let Ok(capacity) = capacity {
-                Some((gpu.to_string(), capacity))
+                Some((format!("{gpu} {capacity}\n"), format!("{gpu} 0\n")))
             } else {
                 sd_journal_log!(4, "Failed to get capacity for device: {gpu}");
                 None
@@ -34,10 +38,11 @@ static GPUS: LazyLock<HashMap<String, u64>> = LazyLock::new(|| {
         })
         .collect();
 
-    if capacities.is_empty() {
+    if boost.is_empty() || revert.is_empty() {
         sd_journal_log!(3, "Could not find any GPUs");
-    };
-    capacities
+        process::exit(1);
+    }
+    ValueString { boost, revert }
 });
 
 fn main() {
@@ -90,20 +95,13 @@ fn main() {
 fn write_cgroup_dmem(pid: i32, op: OP) {
     if let Ok(service) = systemd::login::get_cgroup(Some(pid)) {
         let path = format!("/sys/fs/cgroup{}/dmem.low", service);
-        let value = GPUS
-            .iter()
-            .map(|(gpu, value)| {
-                format!(
-                    "{} {}\n",
-                    gpu,
-                    match op {
-                        OP::Boost => value,
-                        OP::Revert => &0,
-                    }
-                )
-            })
-            .collect::<String>();
-        let res = fs::write(&path, value);
+        let res = fs::write(
+            &path,
+            match op {
+                OP::Boost => &VALUES.boost,
+                OP::Revert => &VALUES.revert,
+            },
+        );
         if let Err(err) = res {
             sd_journal_log!(
                 4,
