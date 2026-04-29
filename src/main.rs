@@ -25,7 +25,7 @@ static VALUES: LazyLock<ValueString> = LazyLock::new(|| {
             if !line.contains("vram") {
                 return None;
             }
-            let [gpu, capacity] = line.trim().split(' ').collect::<Vec<&str>>()[..] else {
+            let [gpu, capacity] = line.split_whitespace().collect::<Vec<&str>>()[..] else {
                 return None;
             };
             let capacity = capacity.parse::<u64>();
