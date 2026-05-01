@@ -94,19 +94,21 @@ fn main() {
 fn write_cgroup_dmem(pid: i32, op: OP) {
     if let Ok(service) = systemd::login::get_cgroup(Some(pid)) {
         let path = format!("/sys/fs/cgroup{}/dmem.low", service);
-        let res = fs::write(
-            &path,
-            match op {
-                OP::Boost => &VALUES.boost,
-                OP::Revert => &VALUES.revert,
-            },
-        );
-        if let Err(err) = res {
-            sd_journal_log!(
-                4,
-                "Error: {err} for path: {path}. This may be caused by dmemcg-booster not yet having enabled dmem controls in which case this is safe to ignore."
+        if path.contains("app.slice") {
+            let res = fs::write(
+                &path,
+                match op {
+                    OP::Boost => &VALUES.boost,
+                    OP::Revert => &VALUES.revert,
+                },
             );
-        };
+            if let Err(err) = res {
+                sd_journal_log!(
+                    4,
+                    "Error: {err} for path: {path}. This may be caused by dmemcg-booster not yet having enabled dmem controls in which case this is safe to ignore."
+                );
+            };
+        }
     } else {
         sd_journal_log!(4, "Failed to get cgroup for pid: {pid}");
     }
