@@ -1,5 +1,5 @@
 [Unit]
-Description=Hyprland dmemcg service
+Description=Service for prioritizing VRAM usage for currently active application on Hyprland
 After=dmemcg-booster-user.service graphical-session.target
 
 [Service]
