@@ -73,7 +73,6 @@ fn main() {
                 *prev_lock = Some(data.pid)
             } else {
                 *prev_lock = None;
-                sd_journal_log!(4, "Failed to get active client");
             }
         } else {
             sd_journal_log!(
