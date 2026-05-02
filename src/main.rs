@@ -75,10 +75,7 @@ fn main() {
                 *prev_lock = None;
             }
         } else {
-            sd_journal_log!(
-                4,
-                "Failed to acquire lock on previous cgroup dmem.low value"
-            );
+            sd_journal_log!(4, "Failed to acquire lock on previous boosted pid");
         }
     });
 
@@ -92,24 +89,33 @@ fn main() {
 }
 
 fn write_cgroup_dmem(pid: i32, op: OP) {
-    if let Ok(service) = systemd::login::get_cgroup(Some(pid)) {
-        let path = format!("/sys/fs/cgroup{}/dmem.low", service);
-        if path.contains("app.slice") {
-            let res = fs::write(
-                &path,
-                match op {
-                    OP::Boost => &VALUES.boost,
-                    OP::Revert => &VALUES.revert,
-                },
-            );
-            if let Err(err) = res {
+    match systemd::login::get_cgroup(Some(pid)) {
+        Ok(service) => {
+            let path = format!("/sys/fs/cgroup{}/dmem.low", service);
+            if path.contains("app.slice") {
+                let res = fs::write(
+                    &path,
+                    match op {
+                        OP::Boost => &VALUES.boost,
+                        OP::Revert => &VALUES.revert,
+                    },
+                );
+                if let Err(err) = res {
+                    sd_journal_log!(
+                        4,
+                        "Error: {err} for path: {path}. This may be caused by dmemcg-booster not yet having enabled dmem controls in which case this is safe to ignore."
+                    );
+                };
+            }
+        }
+        Err(e) => {
+            // Skip writing to journal when previous process no longer exists.
+            if !e.to_string().contains("No such process") {
                 sd_journal_log!(
                     4,
-                    "Error: {err} for path: {path}. This may be caused by dmemcg-booster not yet having enabled dmem controls in which case this is safe to ignore."
+                    "Error when trying to find cgroup by pid: {pid} with error: {e}"
                 );
-            };
+            }
         }
-    } else {
-        sd_journal_log!(4, "Failed to get cgroup for pid: {pid}");
     }
 }
