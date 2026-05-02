@@ -1,3 +1,6 @@
+![GitHub Release](https://img.shields.io/github/v/release/tumrin/hyprland-focused-booster)
+![AUR Version](https://img.shields.io/aur/version/hyprland-focused-booster)
+
 # Hyprland-focused-booster
 
 VRAM prioritization for Hyprland using dmemcg-booster based on
@@ -18,6 +21,14 @@ active game window.
 
 ## Installation
 
+### AUR
+
+https://aur.archlinux.org/packages/hyprland-focused-booster
+
+```bash
+paru -S hyprland-focused-booster
+```
+
 ### Manual
 
 ```bash
@@ -29,10 +40,3 @@ systemctl --user enable --now hyprland-focused-booster.service # For current use
 # OR
 sudo systemctl --user --global enable hyprland-focused-booster.service # For all users
 ```
-
-### PKGBUILD
-
-For Arch-based distributions PKGBUILD is available at
-https://github.com/tumrin/PKGBUILDs/tree/main/hyprland-focused-booster
-
-I will also add this to AUR at some point.
