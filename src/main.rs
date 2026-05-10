@@ -1,6 +1,8 @@
 use std::{
     fs, process,
     sync::{LazyLock, Mutex},
+    thread,
+    time::Duration,
 };
 
 use hyprland::{data::Client, event_listener, shared::HyprDataActiveOptional};
@@ -15,6 +17,9 @@ struct ValueString {
     boost: String,
     revert: String,
 }
+
+const SLEEP_DURATION: Duration = Duration::from_millis(500);
+const RETRY_COUNT: i32 = 5;
 
 static PREVIOUS: LazyLock<Mutex<Option<i32>>> = LazyLock::new(|| Mutex::new(None));
 static VALUES: LazyLock<ValueString> = LazyLock::new(|| {
@@ -93,18 +98,28 @@ fn write_cgroup_dmem(pid: i32, op: OP) {
         Ok(service) => {
             let path = format!("/sys/fs/cgroup{}/dmem.low", service);
             if path.contains("app.slice") {
-                let res = fs::write(
-                    &path,
-                    match op {
-                        OP::Boost => &VALUES.boost,
-                        OP::Revert => &VALUES.revert,
-                    },
-                );
-                if let Err(err) = res {
-                    sd_journal_log!(
-                        4,
-                        "Error: {err} for path: {path}. This may be caused by dmemcg-booster not yet having enabled dmem controls in which case this is safe to ignore."
+                // dmemcg-booster might not be ready yet so retry few times before logging an error
+                let mut retry = 0;
+                let res = loop {
+                    let write = fs::write(
+                        &path,
+                        match op {
+                            OP::Boost => &VALUES.boost,
+                            OP::Revert => &VALUES.revert,
+                        },
                     );
+                    retry += 1;
+                    if retry >= RETRY_COUNT || write.is_ok() {
+                        break write;
+                    }
+                    sd_journal_log!(
+                        5,
+                        "Could not write to dmem.low. Retrying {retry} / {RETRY_COUNT}."
+                    );
+                    thread::sleep(SLEEP_DURATION);
+                };
+                if let Err(err) = res {
+                    sd_journal_log!(3, "Error: {err} for path: {path}.");
                 };
             }
         }

@@ -1,3 +1,5 @@
 /target
 *.tar.zst
 pkg
+PKGBUILD
+*.install
