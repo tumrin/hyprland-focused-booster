@@ -75,7 +75,7 @@ fn main() {
             }
             if let Ok(Some(data)) = Client::get_active() {
                 write_cgroup_dmem(data.pid, OP::Boost);
-                *prev_lock = Some(data.pid)
+                *prev_lock = Some(data.pid);
             } else {
                 *prev_lock = None;
             }
