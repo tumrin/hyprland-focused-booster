@@ -1,5 +1,5 @@
 use std::{
-    fs, process,
+    fs, io, process,
     sync::{LazyLock, Mutex},
     thread,
     time::Duration,
@@ -14,8 +14,8 @@ enum OP {
 }
 
 struct ValueString {
-    boost: String,
-    revert: String,
+    boost: Vec<String>,
+    revert: Vec<String>,
 }
 
 const SLEEP_DURATION: Duration = Duration::from_millis(500);
@@ -25,26 +25,30 @@ const VRAM_CGROUP_NAMES: [&str; 2] = ["vram", "vidmem"];
 
 static PREVIOUS: LazyLock<Mutex<Option<i32>>> = LazyLock::new(|| Mutex::new(None));
 static VALUES: LazyLock<ValueString> = LazyLock::new(|| {
-    let (boost, revert): (String, String) = fs::read_to_string("/sys/fs/cgroup/dmem.capacity")
-        .expect("Could not read GPU devices")
-        .lines()
-        .filter_map(|line| {
-            VRAM_CGROUP_NAMES
-                .into_iter()
-                .find(|name| line.contains(name))?;
+    let (boost, revert): (Vec<String>, Vec<String>) =
+        fs::read_to_string("/sys/fs/cgroup/dmem.capacity")
+            .expect("Could not read GPU devices")
+            .lines()
+            .filter_map(|line| {
+                if !VRAM_CGROUP_NAMES
+                    .into_iter()
+                    .any(|name| line.contains(name))
+                {
+                    return None;
+                }
 
-            let [gpu, capacity] = line.split_whitespace().collect::<Vec<&str>>()[..] else {
-                return None;
-            };
-            let capacity = capacity.parse::<u64>();
-            if let Ok(capacity) = capacity {
-                Some((format!("{gpu} {capacity}\n"), format!("{gpu} 0\n")))
-            } else {
-                sd_journal_log!(4, "Failed to get capacity for device: {gpu}");
-                None
-            }
-        })
-        .collect();
+                let [gpu, capacity] = line.split_whitespace().collect::<Vec<&str>>()[..] else {
+                    return None;
+                };
+                let capacity = capacity.parse::<u64>();
+                if let Ok(capacity) = capacity {
+                    Some((format!("{gpu} {capacity}\n"), format!("{gpu} 0\n")))
+                } else {
+                    sd_journal_log!(4, "Failed to get capacity for device: {gpu}");
+                    None
+                }
+            })
+            .collect();
 
     if boost.is_empty() || revert.is_empty() {
         sd_journal_log!(3, "Could not find any GPUs");
@@ -104,13 +108,13 @@ fn write_cgroup_dmem(pid: i32, op: OP) {
                 // dmemcg-booster might not be ready yet so retry few times before logging an error
                 let mut retry = 0;
                 let res = loop {
-                    let write = fs::write(
-                        &path,
-                        match op {
-                            OP::Boost => &VALUES.boost,
-                            OP::Revert => &VALUES.revert,
-                        },
-                    );
+                    let write: io::Result<()> = match op {
+                        OP::Boost => &VALUES.boost,
+                        OP::Revert => &VALUES.revert,
+                    }
+                    .iter()
+                    .try_for_each(|value| fs::write(&path, value));
+
                     retry += 1;
                     if retry >= RETRY_COUNT || write.is_ok() {
                         break write;
