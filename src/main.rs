@@ -21,15 +21,18 @@ struct ValueString {
 const SLEEP_DURATION: Duration = Duration::from_millis(500);
 const RETRY_COUNT: i32 = 5;
 
+const VRAM_CGROUP_NAMES: [&str; 2] = ["vram", "vidmem"];
+
 static PREVIOUS: LazyLock<Mutex<Option<i32>>> = LazyLock::new(|| Mutex::new(None));
 static VALUES: LazyLock<ValueString> = LazyLock::new(|| {
     let (boost, revert): (String, String) = fs::read_to_string("/sys/fs/cgroup/dmem.capacity")
         .expect("Could not read GPU devices")
         .lines()
         .filter_map(|line| {
-            if !line.contains("vram") {
-                return None;
-            }
+            VRAM_CGROUP_NAMES
+                .into_iter()
+                .find(|name| line.contains(name))?;
+
             let [gpu, capacity] = line.split_whitespace().collect::<Vec<&str>>()[..] else {
                 return None;
             };
