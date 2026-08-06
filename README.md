@@ -7,8 +7,23 @@ VRAM prioritization for Hyprland using dmemcg-booster based on
 https://pixelcluster.github.io/VRAM-Mgmt-fixed/ and inspired by
 https://github.com/1Naim/niri-focused-booster.
 
-You need either linux-cachyos or
-[linux-dmemcg](https://aur.archlinux.org/packages/linux-dmemcg) kernel.
+## Requirements
+
+### Kernel
+
+You'll need one of these kernel versions:
+
+- linux-cachyos
+- [linux-dmemcg](https://aur.archlinux.org/packages/linux-dmemcg)
+- Linux kernel 7.3+
+
+### dmemcg-booster
+
+- [dmemcg-booster](https://aur.archlinux.org/packages/dmemcg-booster)
+
+Remember to start the dmemcg-booster systemd service.
+
+### Running apps as systemd units
 
 You also need to use [runapp](https://github.com/c4rlo/runapp) or similar tool
 to launch applications as systemd units for this to work properly.
