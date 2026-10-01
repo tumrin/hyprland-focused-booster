@@ -9,10 +9,14 @@ codegen-units = 1
 strip = "symbols"
 
 [dependencies]
+basic-toml = { version = "0.1.10", default-features = false }
 ctrlc = { version = "3.5.2", features = ["termination"] }
 hyprland = { version = "0.4.0-beta.3", default-features = false, features = [
   "listener",
 ] }
+serde = { version = "1.0.229", default-features = false, features = ["derive"] }
+serde-inline-default = { version = "1.0.2", default-features = false }
 systemd = { version = "0.10.1", default-features = false, features = [
   "journal",
 ] }
+xdg = { version = "3.0.0", default-features = false }
