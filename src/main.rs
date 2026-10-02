@@ -1,9 +1,9 @@
-use std::process;
+use std::{process, sync::LazyLock};
 
 use hyprland::{data::Client, event_listener, shared::HyprDataActiveOptional};
 use systemd::sd_journal_log;
 
-use crate::boost::{Op, PREVIOUS_PID, write_cgroup};
+use crate::boost::{Op, PREVIOUS_PID, WRITE_OPERATIONS, write_cgroup};
 #[cfg(debug_assertions)]
 use crate::config::CONFIG;
 
@@ -14,7 +14,13 @@ mod debug;
 
 fn main() {
     #[cfg(debug_assertions)]
-    dbg!(&CONFIG);
+    {
+        LazyLock::force(&CONFIG);
+        dbg!(&CONFIG);
+    }
+
+    // Initialize enabled write operations and enabled booster values with it
+    LazyLock::force(&WRITE_OPERATIONS);
 
     ctrlc::set_handler(move || {
         if let Ok(prev_lock) = PREVIOUS_PID.lock() {

@@ -118,15 +118,18 @@ static CPU_VALUES: LazyLock<CpuValueStrings> = LazyLock::new(|| CpuValueStrings 
 });
 
 type WriteFunctions = Vec<fn(&str, Op)>;
-static WRITE_OPERATIONS: LazyLock<WriteFunctions> = LazyLock::new(|| {
+pub static WRITE_OPERATIONS: LazyLock<WriteFunctions> = LazyLock::new(|| {
     let mut ops: WriteFunctions = vec![];
     if CONFIG.vram_boost {
+        LazyLock::force(&DMEM_VALUES);
         ops.push(write_cgroup_dmem);
     }
     if CONFIG.cpu_boost {
+        LazyLock::force(&CPU_VALUES);
         ops.push(write_cgroup_cpu);
     }
     if CONFIG.ram_boost {
+        LazyLock::force(&MEM_VALUES);
         ops.push(write_cgroup_mem)
     }
     ops
