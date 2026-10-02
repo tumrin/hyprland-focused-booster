@@ -1,4 +1,4 @@
-use std::{fs, sync::LazyLock};
+use std::{fmt::Display, fs, sync::LazyLock};
 
 use serde::{Deserialize, Serialize};
 use serde_inline_default::serde_inline_default;
@@ -39,6 +39,20 @@ impl Default for Config {
         }
     }
 }
+impl Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "vram_boost: {}\nvram_boost_value: {}\ncpu_boost: {}\ncpu_boost_value: {}\nram_boost: {}\nram_boost_value: {}",
+            self.vram_boost,
+            self.vram_boost_value,
+            self.cpu_boost,
+            self.cpu_boost_value,
+            self.ram_boost,
+            self.ram_boost_value
+        )
+    }
+}
 impl Config {
     fn limit(mut self) -> Self {
         if !self.vram_boost_value.is_finite()
@@ -76,17 +90,25 @@ pub static CONFIG: LazyLock<Config> = LazyLock::new(|| {
     let path = xdg::BaseDirectories::new().find_config_file("hyprland-focused-booster.toml");
     if let Some(config_path) = path {
         let config_file = fs::read_to_string(config_path);
-        if let Ok(config) = config_file {
-            let toml = basic_toml::from_str::<Config>(&config);
-            toml.unwrap_or_else(|e| {
+        match config_file {
+            Ok(config) => {
+                let toml = basic_toml::from_str::<Config>(&config);
+                let config = toml
+                    .unwrap_or_else(|e| {
+                        sd_journal_log!(3, "Error {e} when parsing config. Using default values");
+                        Config::default()
+                    })
+                    .limit();
+                sd_journal_log!(5, "Using config from config file");
+                config
+            }
+            Err(e) => {
                 sd_journal_log!(3, "Error {e} when reading config. Using default values");
                 Config::default()
-            })
-            .limit()
-        } else {
-            Config::default()
+            }
         }
     } else {
+        sd_journal_log!(5, "Could not find config file. Using default config");
         Config::default()
     }
 });

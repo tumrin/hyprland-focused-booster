@@ -4,7 +4,6 @@ use hyprland::{data::Client, event_listener, shared::HyprDataActiveOptional};
 use systemd::sd_journal_log;
 
 use crate::boost::{Op, PREVIOUS_PID, WRITE_OPERATIONS, write_cgroup};
-#[cfg(debug_assertions)]
 use crate::config::CONFIG;
 
 mod boost;
@@ -13,11 +12,11 @@ mod config;
 mod debug;
 
 fn main() {
+    LazyLock::force(&CONFIG);
+    sd_journal_log!(5, "Using config:\n{}", (*CONFIG));
+
     #[cfg(debug_assertions)]
-    {
-        LazyLock::force(&CONFIG);
-        dbg!(&CONFIG);
-    }
+    dbg!(&CONFIG);
 
     // Initialize enabled write operations and enabled booster values with it
     LazyLock::force(&WRITE_OPERATIONS);
