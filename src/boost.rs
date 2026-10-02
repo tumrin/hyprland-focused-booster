@@ -132,7 +132,7 @@ static WRITE_OPERATIONS: LazyLock<WriteFunctions> = LazyLock::new(|| {
     ops
 });
 
-pub static PREVIOUS_PID: LazyLock<Mutex<Option<i32>>> = LazyLock::new(|| Mutex::new(None));
+pub static PREVIOUS_PID: Mutex<Option<i32>> = Mutex::new(None);
 
 pub fn write_cgroup_cpu(path: &str, op: Op) {
     let path = format!("{path}/cpu.weight");
