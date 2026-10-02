@@ -47,6 +47,8 @@ pub struct CpuValueStrings {
 const VRAM_CGROUP_NAMES: [&str; 2] = ["vram", "vidmem"];
 const RETRY_COUNT: i32 = 5;
 const RETRY_DURATION: Duration = Duration::from_millis(500);
+const ACCEPTED_ERRORS: [io::ErrorKind; 2] =
+    [io::ErrorKind::NotFound, io::ErrorKind::PermissionDenied];
 
 static DMEM_VALUES: LazyLock<DmemValueStrings> = LazyLock::new(|| {
     let (boost, revert): (Vec<String>, Vec<String>) =
@@ -148,7 +150,7 @@ pub fn write_cgroup_cpu(path: &str, op: Op) {
     );
     // There are some cases where cpu.weight does not exist for some applications
     if let Err(err) = res
-        && err.kind() != io::ErrorKind::NotFound
+        && !ACCEPTED_ERRORS.contains(&err.kind())
     {
         sd_journal_log!(3, "Error {op} CPU: {err} for path: {path}.");
     }
@@ -167,7 +169,7 @@ pub fn write_cgroup_mem(path: &str, op: Op) {
     );
     // There are some cases where memory.low does not exist for some applications
     if let Err(err) = res
-        && err.kind() != io::ErrorKind::NotFound
+        && !ACCEPTED_ERRORS.contains(&err.kind())
     {
         sd_journal_log!(3, "Error {op} MEM: {err} for path: {path}.");
     }
@@ -188,10 +190,9 @@ pub fn write_cgroup_dmem(path: &str, op: Op) {
 
         // dmemcg-booster might not be ready yet
         let retryable = op == Op::Boost
-            && write.as_ref().is_err_and(|error| {
-                error.kind() == io::ErrorKind::NotFound
-                    || error.kind() == io::ErrorKind::PermissionDenied
-            });
+            && write
+                .as_ref()
+                .is_err_and(|error| ACCEPTED_ERRORS.contains(&error.kind()));
 
         retry += 1;
 
