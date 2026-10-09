@@ -1,0 +1,27 @@
+name: Format-Lint-Test
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  Format-Deps-Lint-Test:
+    name: Rustfmt + Clippy + Test
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install system depenencies
+        run: sudo apt update && sudo apt install libsystemd-dev
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy -- -D warnings
+      - name: Test
+        run: cargo test --verbose
