@@ -77,14 +77,32 @@ fn main() {
 
     el.add_active_window_changed_handler(move |_w| {
         if let Ok(mut prev_lock) = PREVIOUS.lock() {
-            if let Some(previous) = *prev_lock {
-                write_cgroup_dmem(previous, OP::Revert);
-            }
-            if let Ok(Some(data)) = Client::get_active() {
-                write_cgroup_dmem(data.pid, OP::Boost);
-                *prev_lock = Some(data.pid);
-            } else {
-                *prev_lock = None;
+            match Client::get_active() {
+                Ok(current) => match (*prev_lock, current) {
+                    (None, None) => (),
+                    (None, Some(client)) => {
+                        write_cgroup_dmem(client.pid, OP::Boost);
+                        *prev_lock = Some(client.pid)
+                    }
+                    (Some(previous), None) => {
+                        write_cgroup_dmem(previous, OP::Revert);
+                        *prev_lock = None
+                    }
+                    (Some(previous), Some(client)) => {
+                        if previous != client.pid {
+                            write_cgroup_dmem(previous, OP::Revert);
+                            write_cgroup_dmem(client.pid, OP::Boost);
+                            *prev_lock = Some(client.pid)
+                        }
+                    }
+                },
+                Err(err) => {
+                    if let Some(previous) = *prev_lock {
+                        write_cgroup_dmem(previous, OP::Revert);
+                        *prev_lock = None
+                    }
+                    sd_journal_log!(4, "Failed to get active window: {err}").unwrap_or(());
+                }
             }
         } else {
             sd_journal_log!(4, "Failed to acquire lock on previous boosted pid").unwrap_or(());
