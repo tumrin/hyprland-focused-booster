@@ -44,14 +44,14 @@ static VALUES: LazyLock<ValueString> = LazyLock::new(|| {
                 if let Ok(capacity) = capacity {
                     Some((format!("{gpu} {capacity}\n"), format!("{gpu} 0\n")))
                 } else {
-                    sd_journal_log!(4, "Failed to get capacity for device: {gpu}");
+                    sd_journal_log!(4, "Failed to get capacity for device: {gpu}").unwrap_or(());
                     None
                 }
             })
             .collect();
 
     if boost.is_empty() || revert.is_empty() {
-        sd_journal_log!(3, "Could not find any GPUs");
+        sd_journal_log!(3, "Could not find any GPUs").unwrap_or(());
         process::exit(1);
     }
     ValueString { boost, revert }
@@ -63,13 +63,13 @@ fn main() {
             if let Some(previous) = *prev_lock {
                 write_cgroup_dmem(previous, OP::Revert);
             } else {
-                sd_journal_log!(3, "Failed to revert previous PID dmem.low value");
+                sd_journal_log!(3, "Failed to revert previous PID dmem.low value").unwrap_or(());
             }
             process::exit(0);
         }
     })
     .inspect_err(|e| {
-        sd_journal_log!(3, "{e}");
+        sd_journal_log!(3, "{e}").unwrap_or(());
     })
     .expect("Failed to register interrupt handler");
 
@@ -87,12 +87,14 @@ fn main() {
                 *prev_lock = None;
             }
         } else {
-            sd_journal_log!(4, "Failed to acquire lock on previous boosted pid");
+            sd_journal_log!(4, "Failed to acquire lock on previous boosted pid").unwrap_or(());
         }
     });
 
     el.start_listener()
-        .inspect_err(|e| sd_journal_log!(3, "{e}"))
+        .inspect_err(|e| {
+            sd_journal_log!(3, "{e}").unwrap_or(());
+        })
         .expect("Failed to start event listener");
 
     if let Ok(Some(prev)) = PREVIOUS.lock().map(|p| *p) {
@@ -122,11 +124,12 @@ fn write_cgroup_dmem(pid: i32, op: OP) {
                     sd_journal_log!(
                         5,
                         "Could not write to dmem.low. Retrying {retry} / {RETRY_COUNT}."
-                    );
+                    )
+                    .unwrap_or(());
                     thread::sleep(SLEEP_DURATION);
                 };
                 if let Err(err) = res {
-                    sd_journal_log!(3, "Error: {err} for path: {path}.");
+                    sd_journal_log!(3, "Error: {err} for path: {path}.").unwrap_or(());
                 };
             }
         }
@@ -136,7 +139,8 @@ fn write_cgroup_dmem(pid: i32, op: OP) {
                 sd_journal_log!(
                     4,
                     "Error when trying to find cgroup by pid: {pid} with error: {e}"
-                );
+                )
+                .unwrap_or(());
             }
         }
     }

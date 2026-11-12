@@ -1,6 +1,6 @@
 [package]
 name = "hyprland-focused-booster"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 
 [profile.release]
@@ -13,6 +13,6 @@ ctrlc = { version = "3.5.2", features = ["termination"] }
 hyprland = { version = "0.4.0-beta.3", default-features = false, features = [
   "listener",
 ] }
-systemd = { version = "0.10.1", default-features = false, features = [
+systemd = { version = "0.11.1", default-features = false, features = [
   "journal",
 ] }
